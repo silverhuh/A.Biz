@@ -7,7 +7,7 @@
 # --------------------------------------------------------
 TM_SERVICEDEVTEAM_DEV_BIZ = "C0B12JP7ARW"   # 서비스개발팀 dev biz 채널
 TEST_ALERT_CH = "C092DJVHVPY"                # Test 채널
-TEST_ERROR_STG_TEST = "C0ATEKW9ACC"
+TEST_ERROR_STG_TEST = "C0B2RGH80M9"
 
 # --------------------------------------------------------
 # 멘션 ID 정의

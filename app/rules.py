@@ -7,6 +7,7 @@
 # --------------------------------------------------------
 TM_SERVICEDEVTEAM_DEV_BIZ = "C0B12JP7ARW"   # 서비스개발팀 dev biz 채널
 TEST_ALERT_CH = "C092DJVHVPY"                # Test 채널
+TEST_ERROR_STG_TEST = "C0ATEKW9ACC"
 
 # --------------------------------------------------------
 # 멘션 ID 정의
@@ -36,4 +37,17 @@ RULES = [
             },
         ],
     },
+    {
+        "name": "BIZ_TEST2",
+        "channel": TEST_ERROR_STG_TEST,    # A채널: 서비스개발팀 dev biz
+        "keyword": "Class",                       # 감지 키워드
+        "threshold": 1,                           # 1회 이상 감지 시
+        "notify": [
+            {
+                "channel": TEST_ALERT_CH,         # B채널: Test
+                "text": f"Test 알림 {MENTION_HEO}",  # @허은석 멘션
+                "include_log": False,             # 원본 로그 미포함
+            },
+        ],
+    },    
 ]

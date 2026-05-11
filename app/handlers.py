@@ -5,6 +5,7 @@ Slack 이벤트 핸들러
 - 슬래시 커맨드 처리
 """
 import time
+import json
 from app.config import (
     ALLOWED_SUBTYPES,
     IGNORED_SUBTYPES,
@@ -41,48 +42,52 @@ def register_handlers(app):
         event = body.get("event", {}) or {}
         subtype = event.get("subtype")
         
-        # 디버그 로그
+        # 🎯 강화된 디버그 로그
         if DEBUG_MODE:
-            print(
-                f"[DEBUG] subtype={subtype}, "
-                f"user={event.get('user')}, "
-                f"bot_id={event.get('bot_id')}, "
-                f"username={event.get('username')}, "
-                f"channel={event.get('channel')}, "
-                f"has_attachments={bool(event.get('attachments'))}, "
-                f"text_preview={(event.get('text') or '')[:80]}"
-            )
+            print("=" * 70)
+            print(f"[EVENT] type={event.get('type')}, subtype={subtype}")
+            print(f"[EVENT] channel={event.get('channel')}")
+            print(f"[EVENT] user={event.get('user')}, bot_id={event.get('bot_id')}")
+            print(f"[EVENT] username={event.get('username')}")
+            print(f"[EVENT] has_text={bool(event.get('text'))}")
+            print(f"[EVENT] has_attachments={bool(event.get('attachments'))}")
+            print(f"[EVENT] has_blocks={bool(event.get('blocks'))}")
+            
+            # 추출된 텍스트 미리보기
+            extracted = extract_message_text(event)
+            print(f"[EXTRACTED TEXT]:")
+            print(extracted[:500] if extracted else "(empty)")
+            print("=" * 70)
         
         # ====================================================
         # 🎯 핵심: subtype 필터링 (웹훅 메시지 허용)
         # ====================================================
-        # - None: 일반 사용자 메시지 ✅
-        # - "bot_message": Legacy Incoming Webhook ✅
-        # - "file_share": 파일 첨부 메시지 ✅
-        # - "thread_broadcast": 스레드 브로드캐스트 ✅
-        # - "message_changed"/"message_deleted" 등: ❌ 무시
         if subtype in IGNORED_SUBTYPES:
+            if DEBUG_MODE:
+                print(f"[SKIP] Ignored subtype: {subtype}")
             return
         if subtype is not None and subtype not in ALLOWED_SUBTYPES:
-            # 알려지지 않은 subtype은 안전하게 무시
             if DEBUG_MODE:
                 print(f"[SKIP] Unknown subtype: {subtype}")
             return
         
         # ====================================================
         # 무한루프 방지: 내 봇이 보낸 메시지만 차단
-        # (다른 봇/웹훅은 처리!)
         # ====================================================
         bot_user_id = get_bot_user_id()
         bot_id = get_bot_id()
         
         if bot_user_id and event.get("user") == bot_user_id:
+            if DEBUG_MODE:
+                print(f"[SKIP] My bot's user message")
             return
         if bot_id and event.get("bot_id") == bot_id:
+            if DEBUG_MODE:
+                print(f"[SKIP] My bot's bot_id message")
             return
         
         # ====================================================
-        # 채널 및 텍스트 추출 (웹훅 attachments 포함!)
+        # 채널 및 텍스트 추출 (attachments, blocks 포함!)
         # ====================================================
         channel = event.get("channel")
         text = extract_message_text(event)
@@ -91,7 +96,7 @@ def register_handlers(app):
         # ====================================================
         # !mute / !unmute 명령어 (사용자가 보낸 메시지만)
         # ====================================================
-        if subtype is None:  # 사용자 메시지만 명령어로 처리
+        if subtype is None:
             if cmd.startswith("!mute"):
                 _handle_mute(client, channel, mute=True)
                 return
@@ -104,6 +109,8 @@ def register_handlers(app):
         # ====================================================
         with state_lock:
             if get_is_muted():
+                if DEBUG_MODE:
+                    print(f"[SKIP] Bot is muted")
                 return
         
         # ====================================================
@@ -159,6 +166,9 @@ def process_message(client, channel, text, event):
             continue
         
         hits = keyword_hits_in_text(rule["keyword"], text)
+        if DEBUG_MODE:
+            print(f"[RULE CHECK] {rule['name']}: keyword='{rule['keyword']}', hits={hits}")
+        
         if hits <= 0:
             continue
         
@@ -169,7 +179,13 @@ def process_message(client, channel, text, event):
         for _ in range(hits):
             message_window[key].append(now_ts)
         
-        if len(message_window[key]) >= rule["threshold"]:
+        current_count = len(message_window[key])
+        if DEBUG_MODE:
+            print(f"[COUNT] {rule['name']}: {current_count}/{rule['threshold']}")
+        
+        if current_count >= rule["threshold"]:
+            if DEBUG_MODE:
+                print(f"[ALERT] Threshold reached! Sending alerts for {rule['name']}")
             send_alert_for_rule(client, rule, text)
             message_window[key].clear()
     
@@ -210,6 +226,8 @@ def send_alert_for_rule(client, rule, original_text):
     # 1) 전송 권한 확보
     with state_lock:
         if not global_can_speak_locked(now_ts):
+            if DEBUG_MODE:
+                print(f"[RATE_LIMITED] Cannot send for {rule_name}")
             return
         global_mark_spoke_locked(now_ts)
     
@@ -222,15 +240,19 @@ def send_alert_for_rule(client, rule, original_text):
         try:
             text = action["text"]
             if action.get("include_log"):
-                text += f"\n\n```{original_text[:2500]}```"  # Slack 메시지 길이 제한 고려
+                text += f"\n\n```{original_text[:2500]}```"
             
             client.chat_postMessage(channel=target_channel, text=text)
             sent_count += 1
+            
+            if DEBUG_MODE:
+                print(f"[SENT] {rule_name} → {target_channel}")
             
             if sent_count >= 2:
                 break
         except Exception as e:
             errors.append(f"{target_channel} -> {repr(e)}")
+            print(f"[SEND_FAIL] {target_channel}: {repr(e)}")
     
     # 3) 전부 실패 시 카운터 롤백
     if sent_count == 0:

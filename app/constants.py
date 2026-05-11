@@ -1,0 +1,58 @@
+"""
+Slack 채널 ID 및 멘션 ID 상수 정의
+"""
+
+# --------------------------------------------------------
+# 알림 프리픽스
+# --------------------------------------------------------
+ALERT_PREFIX = "❗"
+
+# --------------------------------------------------------
+# 채널 ID 정의
+# --------------------------------------------------------
+SVC_WATCHTOWER_CH = "C04M1UCMCFQ"
+SVC_TMAP_DIV_CH = "C09BY22G12Q"
+SVC_BTV_DIV_CH = "C077QK6NB4K"
+RTZR_STT_SKT_ALERT_CH = "C091J89DQF7"
+EXT_GIP_REPAIRING_CH = "C06L4C7HUCF"
+LINER_ADOT_CH = "C08DRU0U7CK"
+ERROR_AX_CH = "C0A2ZM3EMBN"
+TEST_ALERT_CH = "C092DJVHVPY"
+OPEN_MONITORING_CH = "C09BLHZAPSS"
+SKT_NAPKIN = "C0A6X4Y1PKP"
+ADOT_BIZ_TEAM = "C0ADQU3PRRC"
+TM_SERVICEDEVTEAM_DEV_BIZ = "C0B12JP7ARW"
+
+# --------------------------------------------------------
+# 멘션 ID 정의
+# --------------------------------------------------------
+MENTION_HEO = "<@U04MGC3BFCY>"
+MENTION_KHM = "<@U04LKUQD294>"
+
+MENTION_KDW = "<@U03H53S4B2B>"
+MENTION_NJK = "<@U03L9HG1Q49>"
+MENTION_JJY = "<@U03J9DUADJ4>"
+
+MENTION_KJH = "<@U04M5AFPQHF>"
+MENTION_KHR = "<@U04LSM49TR8>"
+
+MENTION_KYH = "<@U063M2LKNA1>"
+MENTION_GJH = "<@U063M2QM89K>"
+MENTION_YYJ = "<@U04LSHPDC03>"
+MENTION_PJY = "<@U05319QDEET>"
+
+MENTION_KAI = "<@U06NSJVR0GH>"
+MENTION_BSR = "<@U08DS680G7L>"
+
+MENTION_KSW = "<@U04MGC174HE>"
+MENTION_LYS = "<@U04LV5K4PA8>"
+
+MENTION_GMS = "<@U04M5A7194H>"
+MENTION_JUR = "<@U05BK5TSBRV>"
+
+MENTION_SYC = "<@U04LSHQMADR>"
+
+MENTION_KHJ = "<@U04LC55FDN3>"
+MENTION_PJH = "<@U04LL3F11C6>"
+MENTION_KTH = "<@U04LPNR61BP>"
+MENTION_ERW = "<@U0589UYGNUX>"

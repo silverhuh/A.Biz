@@ -25,7 +25,7 @@ RULES = [
     # ----------------------------------------------------
     {
         "name": "BIZ_TEST",
-        "channel": TM_SERVICEDEVTEAM_dev_biz,    # A채널: 서비스개발팀 dev biz
+        "channel": TM_SERVICEDEVTEAM_DEV_BIZ,    # A채널: 서비스개발팀 dev biz
         "keyword": "Class",                       # 감지 키워드
         "threshold": 1,                           # 1회 이상 감지 시
         "notify": [

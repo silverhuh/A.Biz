@@ -1,6 +1,6 @@
 """
 공통 유틸리티 함수
-- 텍스트 추출 (웹훅의 attachments 포함)
+- 텍스트 추출 (웹훅의 attachments, blocks 완벽 지원)
 - 키워드 카운팅
 - 시간 윈도우 관리
 """
@@ -59,56 +59,103 @@ def clear_counters():
 
 
 # --------------------------------------------------------
-# 메시지 텍스트 추출 (핵심: 웹훅 attachments 지원!)
+# 🎯 강화된 메시지 텍스트 추출 (Grafana 등 모든 봇 지원!)
 # --------------------------------------------------------
 def extract_message_text(event: dict) -> str:
     """
     Slack 이벤트에서 모든 텍스트를 추출합니다.
-    웹훅 메시지(attachments, blocks)도 처리합니다.
     
-    추출 순서:
-    1. event["text"] (기본 메시지)
-    2. event["attachments"][*]["text"] / ["fallback"] / ["pretext"] / ["title"]
-    3. event["attachments"][*]["fields"][*]["title"/"value"]
-    4. event["blocks"][*]["text"]["text"] (Block Kit)
+    지원 영역:
+    1. event["text"]                            (기본 메시지)
+    2. event["attachments"][*]["text"]          (Grafana, Webhook 등)
+    3. event["attachments"][*]["fallback"]      (대체 텍스트)
+    4. event["attachments"][*]["pretext"]       (위 텍스트)
+    5. event["attachments"][*]["title"]         (제목)
+    6. event["attachments"][*]["title_link"]    (제목 링크)
+    7. event["attachments"][*]["author_name"]   (작성자)
+    8. event["attachments"][*]["footer"]        (푸터)
+    9. event["attachments"][*]["fields"][*]     (필드: 제목 + 값)
+    10. event["blocks"][*]                      (Block Kit 전체)
+        - section.text
+        - section.fields
+        - context.elements
+        - rich_text.elements
+        - header.text
     """
     parts = []
     
-    # 1. 기본 text
+    # ===== 1. 기본 text =====
     if event.get("text"):
-        parts.append(event["text"])
+        parts.append(str(event["text"]))
     
-    # 2. attachments (Legacy Webhook이 주로 사용)
+    # ===== 2. attachments (Grafana, Legacy Webhook의 핵심!) =====
     for att in event.get("attachments", []) or []:
-        for key in ("pretext", "title", "text", "fallback"):
-            if att.get(key):
-                parts.append(att[key])
+        # 일반 텍스트 필드들
+        for key in ("pretext", "title", "text", "fallback", 
+                    "author_name", "footer", "title_link"):
+            value = att.get(key)
+            if value:
+                parts.append(str(value))
         
-        # attachment fields
+        # fields 배열 (Grafana가 자주 사용!)
         for field in att.get("fields", []) or []:
-            if field.get("title"):
-                parts.append(field["title"])
-            if field.get("value"):
-                parts.append(field["value"])
+            if isinstance(field, dict):
+                if field.get("title"):
+                    parts.append(str(field["title"]))
+                if field.get("value"):
+                    parts.append(str(field["value"]))
+        
+        # blocks (attachment 안의 blocks)
+        for block in att.get("blocks", []) or []:
+            parts.extend(_extract_from_block(block))
     
-    # 3. blocks (Modern Block Kit)
+    # ===== 3. blocks (Modern Block Kit) =====
     for block in event.get("blocks", []) or []:
-        # section block
-        text_obj = block.get("text", {})
-        if isinstance(text_obj, dict) and text_obj.get("text"):
-            parts.append(text_obj["text"])
-        
-        # context block elements
-        for element in block.get("elements", []) or []:
-            if isinstance(element, dict) and element.get("text"):
-                parts.append(element["text"])
-        
-        # fields in section
-        for field in block.get("fields", []) or []:
-            if isinstance(field, dict) and field.get("text"):
-                parts.append(field["text"])
+        parts.extend(_extract_from_block(block))
     
-    return "\n".join(parts)
+    # ===== 4. 모든 텍스트 합치기 =====
+    return "\n".join(p for p in parts if p)
+
+
+def _extract_from_block(block: dict) -> list:
+    """Block Kit의 단일 block에서 모든 텍스트 추출 (재귀적)"""
+    if not isinstance(block, dict):
+        return []
+    
+    parts = []
+    
+    # block.text (section, header 등)
+    text_obj = block.get("text")
+    if isinstance(text_obj, dict) and text_obj.get("text"):
+        parts.append(str(text_obj["text"]))
+    elif isinstance(text_obj, str):
+        parts.append(text_obj)
+    
+    # block.fields (section block)
+    for field in block.get("fields", []) or []:
+        if isinstance(field, dict) and field.get("text"):
+            parts.append(str(field["text"]))
+        elif isinstance(field, str):
+            parts.append(field)
+    
+    # block.elements (context, rich_text, actions 등)
+    for element in block.get("elements", []) or []:
+        if isinstance(element, dict):
+            # text 필드
+            if element.get("text"):
+                if isinstance(element["text"], dict):
+                    if element["text"].get("text"):
+                        parts.append(str(element["text"]["text"]))
+                else:
+                    parts.append(str(element["text"]))
+            
+            # rich_text_section의 elements (재귀)
+            for sub_element in element.get("elements", []) or []:
+                if isinstance(sub_element, dict):
+                    if sub_element.get("text"):
+                        parts.append(str(sub_element["text"]))
+    
+    return parts
 
 
 # --------------------------------------------------------
